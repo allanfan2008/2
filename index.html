@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iOS Control Center Toggle</title>
+    <title>iOS Control Center Ultra Toggle</title>
     <style>
         * {
             box-sizing: border-box;
@@ -20,228 +20,293 @@
             align-items: center;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             overflow: hidden;
-            transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* 容器與外發光背景 */
+        /* 外部控制中心容器 */
         .toggle-container {
             position: relative;
-            width: 180px;
-            height: 320px;
-            background: rgba(22, 28, 45, 0.6);
+            width: 140px;
+            height: 280px;
+            background: rgba(20, 25, 38, 0.7);
+            border-radius: 46px;
+            padding: 8px;
+            box-shadow: 
+                inset 0 6px 16px rgba(0, 0, 0, 0.8),
+                inset 0 1px 2px rgba(255, 255, 255, 0.08),
+                0 25px 50px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(25px);
+            cursor: grab;
+        }
+
+        .toggle-container:active {
+            cursor: grabbing;
+        }
+
+        /* 畫布：用來渲染精緻高光、毛玻璃、陰影與動態粒子 */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
             border-radius: 40px;
-            padding: 10px;
-            box-shadow: 
-                inset 0 4px 12px rgba(0, 0, 0, 0.6),
-                inset 0 1px 2px rgba(255, 255, 255, 0.05),
-                0 20px 40px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px);
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* 滑動軌道 */
-        .toggle-track {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            border-radius: 30px;
-        }
-
-        /* 滑塊本體 */
-        .toggle-thumb {
-            position: absolute;
-            bottom: 4px;
-            left: 4px;
-            width: calc(100% - 8px);
-            height: 152px;
-            background: linear-gradient(145deg, #232a3f, #151a2b);
-            border-radius: 26px;
-            box-shadow: 
-                0 10px 25px rgba(0, 0, 0, 0.5),
-                inset 0 1px 1px rgba(255, 255, 255, 0.2),
-                inset 0 -2px 5px rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            will-change: transform, bottom;
-            transition: box-shadow 0.4s ease;
-        }
-
-        /* 頂部精緻玻璃反光（圓角弧形透鏡高光） */
-        .toggle-thumb::before {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            right: 2px;
-            height: 45%;
-            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.0));
-            border-top-left-radius: 24px;
-            border-top-right-radius: 24px;
             pointer-events: none;
-        }
-
-        /* 邊緣光暈（日落金 / 霓虹藍） */
-        .toggle-thumb::after {
-            content: '';
-            position: absolute;
-            inset: -1px;
-            border-radius: 27px;
-            background: radial-gradient(circle at 50% 0%, var(--edge-glow-color, rgba(255,180,50,0.8)), transparent 70%);
-            z-index: -1;
-            opacity: 0.8;
-            transition: background 0.4s ease;
-            pointer-events: none;
-        }
-
-        /* 圖示容器 */
-        .icon-wrapper {
-            position: relative;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .icon {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        /* 太陽與月亮 SVG 樣式 */
-        svg {
-            width: 100%;
-            height: 100%;
-            fill: #ffffff;
-            filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.4));
-        }
-
-        /* 狀態控制 */
-        .toggle-container.night .toggle-thumb {
-            --edge-glow-color: rgba(0, 210, 255, 0.9);
-        }
-        
-        .toggle-container.day .toggle-thumb {
-            --edge-glow-color: rgba(255, 160, 40, 0.9);
         }
     </style>
 </head>
 <body>
 
-    <div class="toggle-container day" id="toggleContainer">
-        <div class="toggle-track" id="toggleTrack">
-            <div class="toggle-thumb" id="toggleThumb">
-                <div class="icon-wrapper">
-                    <!-- 太陽圖示 -->
-                    <div class="icon" id="sunIcon" style="opacity: 1; transform: scale(1);">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
-                    </div>
-                    <!-- 月亮圖示 -->
-                    <div class="icon" id="moonIcon" style="opacity: 0; transform: scale(0.6);">
-                        <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="toggle-container" id="toggleContainer">
+        <canvas id="canvas" width="280" height="560"></canvas>
     </div>
 
     <script>
         const container = document.getElementById('toggleContainer');
-        const thumb = document.getElementById('toggleThumb');
-        const track = document.getElementById('toggleTrack');
-        const sunIcon = document.getElementById('sunIcon');
-        const moonIcon = document.getElementById('moonIcon');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
 
+        // 狀態參數
+        let isNight = false;
+        let progress = 0.0; // 0.0 (Day) 到 1.0 (Night)
+        let targetProgress = 0.0;
         let isDragging = false;
         let startY = 0;
-        let currentBottom = 4; // 初始在底部 (Day 模式)
-        const trackHeight = 300;
-        const thumbHeight = 152;
-        const maxBottom = trackHeight - thumbHeight - 8;
+        let startProgress = 0.0;
 
-        let isNight = false;
+        // 尺寸設定 (內部解析度 280x560)
+        const width = 280;
+        const height = 560;
+        const padding = 14;
+        const thumbWidth = width - padding * 2;
+        const thumbHeight = 240;
+        const minY = padding;
+        const maxY = height - thumbHeight - padding;
 
-        function updateState(night, animate = true) {
-            isNight = night;
-            if (isNight) {
-                container.classList.add('night');
-                container.classList.remove('day');
-                document.body.style.backgroundColor = '#05070c';
-                sunIcon.style.opacity = '0';
-                sunIcon.style.transform = 'scale(0.6)';
-                moonIcon.style.opacity = '1';
-                moonIcon.style.transform = 'scale(1)';
-            } else {
-                container.classList.add('day');
-                container.classList.remove('night');
-                document.body.style.backgroundColor = '#0b0f19';
-                sunIcon.style.opacity = '1';
-                sunIcon.style.transform = 'scale(1)';
-                moonIcon.style.opacity = '0';
-                moonIcon.style.transform = 'scale(0.6)';
+        // 建立粒子系統 (用於模擬影片中的圖示解體與重組)
+        class ParticleSystem {
+            constructor() {
+                this.particles = [];
+                for (let i = 0; i < 45; i++) {
+                    this.particles.push({
+                        x: 0, y: 0,
+                        baseX: 0, baseY: 0,
+                        targetX: 0, targetY: 0,
+                        vx: 0, vy: 0,
+                        size: Math.random() * 3 + 2,
+                        alpha: 1
+                    });
+                }
             }
 
-            thumb.style.transition = animate ? 'bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' : 'none';
-            currentBottom = isNight ? maxBottom : 4;
-            thumb.style.bottom = currentBottom + 'px';
+            // 生成太陽的像素點矩陣座標
+            getSunShape(cx, cy) {
+                let pts = [];
+                // 中心核心
+                for (let dx = -2; dx <= 2; dx++) {
+                    for (let dy = -2; dy <= 2; dy++) {
+                        if (Math.abs(dx) + Math.abs(dy) <= 3) {
+                            pts.push({ x: cx + dx * 5, y: cy + dy * 5 });
+                        }
+                    }
+                }
+                // 四周光芒點
+                const angles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
+                angles.forEach(a => {
+                    pts.push({ x: cx + Math.cos(a) * 22, y: cy + Math.sin(a) * 22 });
+                    pts.push({ x: cx + Math.cos(a) * 15, y: cy + Math.sin(a) * 15 });
+                });
+                return pts;
+            }
+
+            // 生成月亮的像素點矩陣座標
+            getMoonShape(cx, cy) {
+                let pts = [];
+                for (let r = -16; r <= 16; r += 5) {
+                    for (let c = -16; c <= 16; c += 5) {
+                        let dist1 = Math.sqrt(r*r + c*c);
+                        let dist2 = Math.sqrt((r-6)*(r-6) + c*c);
+                        if (dist1 <= 18 && dist2 > 11) {
+                            pts.push({ x: cx + r, y: cy + c });
+                        }
+                    }
+                }
+                // 補充一些星光點
+                pts.push({ x: cx - 22, y: cy - 12 });
+                pts.push({ x: cx + 18, y: cy + 14 });
+                pts.push({ x: cx - 15, y: cy + 18 });
+                return pts;
+            }
+
+            update(prog, thumbCenterY) {
+                let sunPts = this.getSunShape(width / 2, thumbCenterY);
+                let moonPts = this.getMoonShape(width / 2, thumbCenterY);
+
+                // 確保粒子數量匹配
+                while(sunPts.length < this.particles.length) sunPts.push(sunPts[0]);
+                while(moonPts.length < this.particles.length) moonPts.push(moonPts[0]);
+
+                for (let i = 0; i < this.particles.length; i++) {
+                    let p = this.particles[i];
+                    let sp = sunPts[i];
+                    let mp = moonPts[i];
+
+                    // 依據進度內插目標位置 (prog 從 0 到 1)
+                    p.targetX = sp.x + (mp.x - sp.x) * prog;
+                    p.targetY = sp.y + (mp.y - sp.y) * prog;
+
+                    // 當正在轉場時加入亂數擾動 (模擬粒子旋轉解體)
+                    let turbulence = Math.sin(prog * Math.PI) * 15;
+                    let targetXWithTurbulence = p.targetX + (Math.sin(i + prog * 10) * turbulence);
+                    let targetYWithTurbulence = p.targetY + (Math.cos(i * 1.5 + prog * 10) * turbulence);
+
+                    // 彈簧物理運動
+                    p.vx += (targetXWithTurbulence - p.x) * 0.2;
+                    p.vy += (targetYWithTurbulence - p.y) * 0.2;
+                    p.vx *= 0.7; // 阻尼
+                    p.vy *= 0.7;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = '#ffffff';
+                for (let p of this.particles) {
+                    ctx.beginPath();
+                    ctx.roundRect(p.x - 2.5, p.y - 2.5, 5, 5, 1.5);
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                    ctx.shadowBlur = 6;
+                    ctx.fill();
+                    ctx.shadowBlur = 0; // 重置
+                }
+            }
         }
 
-        // 點擊直接切換
-        container.addEventListener('click', (e) => {
-            if (isDragging) return;
-            // 點擊時反轉狀態
-            updateState(!isNight, true);
+        const particleSystem = new ParticleSystem();
+
+        // 繪製主循環
+        function render() {
+            // 彈簧過渡動畫
+            progress += (targetProgress - progress) * 0.15;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // 1. 計算滑塊目前 Y 座標
+            const currentThumbY = minY + progress * (maxY - minY);
+            const thumbCenterY = currentThumbY + thumbHeight / 2;
+
+            // 2. 顏色色彩過渡 (Day: 暖金黃光 ⇄ Night: 極光湛藍)
+            const glowR = Math.round(255 + (0 - 255) * progress);
+            const glowG = Math.round(180 + (210 - 180) * progress);
+            const glowB = Math.round(50 + (255 - 50) * progress);
+            const glowColorStr = `rgba(${glowR}, ${glowG}, ${glowB}, 0.85)`;
+
+            // 背景整體色調過渡
+            document.body.style.backgroundColor = `rgb(${Math.round(11 + progress * 2)}, ${Math.round(15 + progress * 2)}, ${Math.round(25 - progress * 5)})`;
+
+            // 3. 繪製軌道內部凹槽陰影
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(padding, padding, width - padding * 2, height - padding * 2, 36);
+            ctx.fillStyle = isNight ? '#0e121d' : '#d8d8dc';
+            ctx.fill();
+            ctx.restore();
+
+            // 4. 繪製滑塊邊緣外發光 (Aura Glow)
+            ctx.save();
+            ctx.shadowColor = glowColorStr;
+            ctx.shadowBlur = 35 + Math.sin(progress * Math.PI) * 10;
+            ctx.beginPath();
+            ctx.roundRect(padding, currentThumbY, thumbWidth, thumbHeight, 32);
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fill();
+            ctx.restore();
+
+            // 5. 繪製滑塊本體 (Neumorphic Squircle 漸層與高光)
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(padding, currentThumbY, thumbWidth, thumbHeight, 32);
+            
+            let thumbGrad = ctx.createLinearGradient(0, currentThumbY, 0, currentThumbY + thumbHeight);
+            if (isNight || progress > 0.5) {
+                thumbGrad.addColorStop(0, '#283048');
+                thumbGrad.addColorStop(1, '#151925');
+            } else {
+                thumbGrad.addColorStop(0, '#ffffff');
+                thumbGrad.addColorStop(1, '#e0e0e6');
+            }
+            ctx.fillStyle = thumbGrad;
+            ctx.fill();
+
+            // 內部精緻浮雕邊框
+            ctx.strokeStyle = isNight ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+
+            // 6. 頂部高光折射 (鏡面反光效果，完美貼合圓角)
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(padding + 2, currentThumbY + 2, thumbWidth - 4, thumbHeight * 0.4, {tl: 30, tr: 30, bl: 0, br: 0});
+            let glossGrad = ctx.createLinearGradient(0, currentThumbY, 0, currentThumbY + thumbHeight * 0.4);
+            glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+            glossGrad.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+            ctx.fillStyle = glossGrad;
+            ctx.fill();
+            ctx.restore();
+
+            // 7. 更新並繪製動態粒子圖示系統
+            particleSystem.update(progress, thumbCenterY);
+            particleSystem.draw(ctx);
+
+            requestAnimationFrame(render);
+        }
+
+        // 互動事件控制 (支援滑鼠與觸控點擊、拖曳)
+        function getClientY(e) {
+            return e.touches ? e.touches[0].clientY : e.clientY;
+        }
+
+        container.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            startY = getClientY(e);
+            startProgress = progress;
+            container.setPointerCapture(e.pointerId);
         });
 
-        // 支援拖曳功能
-        thumb.addEventListener('mousedown', startDrag);
-        thumb.addEventListener('touchstart', startDrag, {passive: true});
-
-        function startDrag(e) {
-            isDragging = true;
-            thumb.style.transition = 'none';
-            startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-            e.stopPropagation();
-        }
-
-        window.addEventListener('mousemove', onDrag);
-        window.addEventListener('touchmove', onDrag, {passive: true});
-
-        function onDrag(e) {
+        container.addEventListener('pointermove', (e) => {
             if (!isDragging) return;
-            const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-            const deltaY = startY - clientY; // 往上拖為正
-            startY = clientY;
+            const deltaY = getClientY(e) - startY;
+            const trackSpan = maxY - minY;
+            let newProg = startProgress + (deltaY / trackSpan);
+            targetProgress = Math.max(0, Math.min(1, newProg));
+        });
 
-            currentBottom += deltaY;
-            currentBottom = Math.max(4, Math.min(maxBottom, currentBottom));
-            thumb.style.bottom = currentBottom + 'px';
-
-            // 即時互動圖示透明度漸變
-            const progress = currentBottom / maxBottom;
-            sunIcon.style.opacity = 1 - progress;
-            moonIcon.style.opacity = progress;
-        }
-
-        window.addEventListener('mouseup', endDrag);
-        window.addEventListener('touchend', endDrag);
-
-        function endDrag() {
+        function endDrag(e) {
             if (!isDragging) return;
             isDragging = false;
-
-            // 超過一半距離自動吸附切換
-            const shouldBeNight = currentBottom > maxBottom / 2;
-            updateState(shouldBeNight, true);
+            // 超過一半自動吸附到頂部或底部
+            if (targetProgress > 0.5) {
+                targetProgress = 1.0;
+                isNight = true;
+            } else {
+                targetProgress = 0.0;
+                isNight = false;
+            }
         }
 
-        // 初始化
-        updateState(false, false);
+        container.addEventListener('pointerup', endDrag);
+        container.addEventListener('pointercancel', endDrag);
+
+        // 點擊切換支援
+        container.addEventListener('click', (e) => {
+            // 如果剛才是拖曳結束，則不觸發點擊切換
+            if (Math.abs(getClientY(e) - startY) > 5 && isDragging) return;
+            isNight = !isNight;
+            targetProgress = isNight ? 1.0 : 0.0;
+        });
+
+        // 啟動動畫
+        requestAnimationFrame(render);
     </script>
 </body>
 </html>
