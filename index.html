@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Control Center Toggle</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: #0b0f19;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 容器與外發光背景 */
+        .toggle-container {
+            position: relative;
+            width: 180px;
+            height: 320px;
+            background: rgba(22, 28, 45, 0.6);
+            border-radius: 40px;
+            padding: 10px;
+            box-shadow: 
+                inset 0 4px 12px rgba(0, 0, 0, 0.6),
+                inset 0 1px 2px rgba(255, 255, 255, 0.05),
+                0 20px 40px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 滑動軌道 */
+        .toggle-track {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 30px;
+        }
+
+        /* 滑塊本體 */
+        .toggle-thumb {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            width: calc(100% - 8px);
+            height: 152px;
+            background: linear-gradient(145deg, #232a3f, #151a2b);
+            border-radius: 26px;
+            box-shadow: 
+                0 10px 25px rgba(0, 0, 0, 0.5),
+                inset 0 1px 1px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 5px rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            will-change: transform, bottom;
+            transition: box-shadow 0.4s ease;
+        }
+
+        /* 頂部精緻玻璃反光（圓角弧形透鏡高光） */
+        .toggle-thumb::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            height: 45%;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.0));
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            pointer-events: none;
+        }
+
+        /* 邊緣光暈（日落金 / 霓虹藍） */
+        .toggle-thumb::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 27px;
+            background: radial-gradient(circle at 50% 0%, var(--edge-glow-color, rgba(255,180,50,0.8)), transparent 70%);
+            z-index: -1;
+            opacity: 0.8;
+            transition: background 0.4s ease;
+            pointer-events: none;
+        }
+
+        /* 圖示容器 */
+        .icon-wrapper {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .icon {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        /* 太陽與月亮 SVG 樣式 */
+        svg {
+            width: 100%;
+            height: 100%;
+            fill: #ffffff;
+            filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.4));
+        }
+
+        /* 狀態控制 */
+        .toggle-container.night .toggle-thumb {
+            --edge-glow-color: rgba(0, 210, 255, 0.9);
+        }
+        
+        .toggle-container.day .toggle-thumb {
+            --edge-glow-color: rgba(255, 160, 40, 0.9);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toggle-container day" id="toggleContainer">
+        <div class="toggle-track" id="toggleTrack">
+            <div class="toggle-thumb" id="toggleThumb">
+                <div class="icon-wrapper">
+                    <!-- 太陽圖示 -->
+                    <div class="icon" id="sunIcon" style="opacity: 1; transform: scale(1);">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+                    </div>
+                    <!-- 月亮圖示 -->
+                    <div class="icon" id="moonIcon" style="opacity: 0; transform: scale(0.6);">
+                        <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('toggleContainer');
+        const thumb = document.getElementById('toggleThumb');
+        const track = document.getElementById('toggleTrack');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+
+        let isDragging = false;
+        let startY = 0;
+        let currentBottom = 4; // 初始在底部 (Day 模式)
+        const trackHeight = 300;
+        const thumbHeight = 152;
+        const maxBottom = trackHeight - thumbHeight - 8;
+
+        let isNight = false;
+
+        function updateState(night, animate = true) {
+            isNight = night;
+            if (isNight) {
+                container.classList.add('night');
+                container.classList.remove('day');
+                document.body.style.backgroundColor = '#05070c';
+                sunIcon.style.opacity = '0';
+                sunIcon.style.transform = 'scale(0.6)';
+                moonIcon.style.opacity = '1';
+                moonIcon.style.transform = 'scale(1)';
+            } else {
+                container.classList.add('day');
+                container.classList.remove('night');
+                document.body.style.backgroundColor = '#0b0f19';
+                sunIcon.style.opacity = '1';
+                sunIcon.style.transform = 'scale(1)';
+                moonIcon.style.opacity = '0';
+                moonIcon.style.transform = 'scale(0.6)';
+            }
+
+            thumb.style.transition = animate ? 'bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' : 'none';
+            currentBottom = isNight ? maxBottom : 4;
+            thumb.style.bottom = currentBottom + 'px';
+        }
+
+        // 點擊直接切換
+        container.addEventListener('click', (e) => {
+            if (isDragging) return;
+            // 點擊時反轉狀態
+            updateState(!isNight, true);
+        });
+
+        // 支援拖曳功能
+        thumb.addEventListener('mousedown', startDrag);
+        thumb.addEventListener('touchstart', startDrag, {passive: true});
+
+        function startDrag(e) {
+            isDragging = true;
+            thumb.style.transition = 'none';
+            startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            e.stopPropagation();
+        }
+
+        window.addEventListener('mousemove', onDrag);
+        window.addEventListener('touchmove', onDrag, {passive: true});
+
+        function onDrag(e) {
+            if (!isDragging) return;
+            const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            const deltaY = startY - clientY; // 往上拖為正
+            startY = clientY;
+
+            currentBottom += deltaY;
+            currentBottom = Math.max(4, Math.min(maxBottom, currentBottom));
+            thumb.style.bottom = currentBottom + 'px';
+
+            // 即時互動圖示透明度漸變
+            const progress = currentBottom / maxBottom;
+            sunIcon.style.opacity = 1 - progress;
+            moonIcon.style.opacity = progress;
+        }
+
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
+        function endDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+
+            // 超過一半距離自動吸附切換
+            const shouldBeNight = currentBottom > maxBottom / 2;
+            updateState(shouldBeNight, true);
+        }
+
+        // 初始化
+        updateState(false, false);
+    </script>
+</body>
+</html>
